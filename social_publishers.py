@@ -88,8 +88,11 @@ def post_to_linkedin(video_path, caption, person_id, access_token):
         'Content-Type': 'application/json'
     }
     
-    author_urn = f"urn:li:person:{person_id}"
+    # FIXED: Changed from urn:li:person: to urn:li:member:
+    author_urn = f"urn:li:member:{person_id}"
     file_size = os.path.getsize(video_path)
+    
+    # Rest of your function stays exactly the same...
     
     # Step 1: Register the Upload
     register_url = "https://api.linkedin.com/v2/assets?action=registerUpload"
