@@ -1,7 +1,7 @@
-# social_publishers.py
 import requests
 import json
 import time
+import os
 
 def post_to_facebook(video_path, caption, page_id, access_token):
     print("Initializing Facebook API Upload...")
@@ -79,9 +79,8 @@ def post_to_instagram(video_url, caption, ig_user_id, access_token):
         return True
     return False
 
-import os
 
-def post_to_linkedin(video_path, caption, org_id, access_token):
+def post_to_linkedin(video_path, caption, person_id, access_token):
     print("Initializing LinkedIn Video Upload...")
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -89,7 +88,8 @@ def post_to_linkedin(video_path, caption, org_id, access_token):
         'Content-Type': 'application/json'
     }
     
-    author_urn = f"urn:li:organization:{org_id}"
+    # Updated to point to a Personal Profile instead of an Organization
+    author_urn = f"urn:li:person:{person_id}"
     file_size = os.path.getsize(video_path)
     
     # Step 1: Register the Upload
@@ -140,6 +140,7 @@ def post_to_linkedin(video_path, caption, org_id, access_token):
         print("LinkedIn Upload Successful.")
         return True
     return False
+
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
