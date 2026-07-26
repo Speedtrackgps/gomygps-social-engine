@@ -2,9 +2,8 @@ name: Daily Social Media Publisher
 
 on:
   schedule:
-    # Runs at 16:30 UTC every day, which is exactly 10:00 PM IST
     - cron: '30 16 * * *'
-  workflow_dispatch: # Allows you to trigger it manually anytime!
+  workflow_dispatch:
 
 jobs:
   publish:
@@ -21,6 +20,7 @@ jobs:
 
       - name: Install Dependencies
         run: |
+          sudo apt-get update && sudo apt-get install -y ffmpeg
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
