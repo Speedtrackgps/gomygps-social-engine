@@ -13,9 +13,9 @@ from social_publishers import (
     post_to_youtube
 )
 
-# Configuration
-SHEET_NAME = "Social Media Publisher" # Update to your exact Sheet name
-TAB_NAME = "Sheet1"
+# Configuration using your specific Google Sheet ID
+SHEET_ID = "1lSBKYJ2mmzF7fkGHQ3NggaFmoJ4cBym4OjfRfAWh6xs" 
+TAB_NAME = "Sheet1" # Change if your tab has a different name
 
 def authenticate_sheets():
     """Authenticates the Google Sheets Service Account."""
@@ -44,17 +44,21 @@ def process_pending_posts():
     FB_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
     FB_PAGE_ID = os.environ.get("FB_PAGE_ID")
     IG_USER_ID = os.environ.get("IG_USER_ID")
+    
+    # Updated to grab Personal ID instead of Org ID
     LI_TOKEN = os.environ.get("LI_ACCESS_TOKEN")
-    LI_ORG_ID = os.environ.get("LI_ORG_ID")
+    LI_PERSON_ID = os.environ.get("LI_PERSON_ID")
     
     YT_CLIENT_ID = os.environ.get("YT_CLIENT_ID")
     YT_CLIENT_SECRET = os.environ.get("YT_CLIENT_SECRET")
     YT_REFRESH_TOKEN = os.environ.get("YT_REFRESH_TOKEN")
 
     client = authenticate_sheets()
-    sheet = client.open(SHEET_NAME).worksheet(TAB_NAME)
+    # Opens the sheet directly using the ID from your URL
+    sheet = client.open_by_key(SHEET_ID).worksheet(TAB_NAME)
     records = sheet.get_all_records()
     
+    # Grab today's date in YYYY-MM-DD format
     today = datetime.now().strftime("%Y-%m-%d")
     
     for idx, row in enumerate(records):
@@ -63,7 +67,7 @@ def process_pending_posts():
         status = str(row.get("Status", "")).strip().lower()
         schedule_date = str(row.get("Schedule Date", "")).strip()
         
-        # Only process if scheduled for today AND not already marked "Done"
+        # EXPLICIT DATE FILTER: Only process if scheduled for TODAY and not marked "Done"
         if status != "done" and schedule_date == today:
             task_id = row.get("task_id")
             platforms = str(row.get("target_platforms", "")).split(",")
@@ -84,12 +88,13 @@ def process_pending_posts():
                 post_to_instagram(row["drive_file_url"], caption, IG_USER_ID, FB_TOKEN)
                 
             if "LI" in platforms:
-                post_to_linkedin(video_path, caption, LI_ORG_ID, LI_TOKEN)
+                # Passing LI_PERSON_ID to target your personal profile
+                post_to_linkedin(video_path, caption, LI_PERSON_ID, LI_TOKEN)
                 
             if "YT" in platforms or "GB" in platforms:
                 post_to_youtube(video_path, linkedin_title, caption, YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN)
                 
-            # Step 3: Write "Done" back to the Google Sheet (Column 9 / I)
+            # Step 3: Write "Done" back to the Google Sheet (Assuming Status is Column 9 / I)
             sheet.update_cell(row_num, 9, "Done")
             print(f"Task {task_id} successfully marked as Done.")
             
