@@ -39,17 +39,19 @@ def download_large_video(drive_url, task_id):
     return filename
 
 def compress_video(input_path, output_path):
-    """Uses GitHub's built-in FFmpeg to compress the video automatically."""
-    print(f"Compressing {input_path} to reduce size...")
+    """Compresses and formats video specifically for Instagram Reels compliance."""
+    print(f"Optimizing and compressing video for Instagram Reels...")
     command = [
         'ffmpeg', '-i', input_path,
-        '-vcodec', 'libx264', '-crf', '28', # crf 28 highly compresses while keeping quality
+        '-vcodec', 'libx264', '-crf', '28',
         '-preset', 'fast',
+        '-acodec', 'aac',          # Instagram strictly requires AAC audio
+        '-pix_fmt', 'yuv420p',     # Standard pixel format for mobile/web players
+        '-movflags', '+faststart', # Puts video metadata at the start so Meta can read it instantly
         output_path
     ]
-    # Run the compression command
     subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    print("Compression complete!")
+    print("Optimization complete!")
     return output_path
 
 def get_public_url_for_instagram(filepath):
