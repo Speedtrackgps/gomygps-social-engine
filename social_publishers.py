@@ -88,7 +88,6 @@ def post_to_linkedin(video_path, caption, person_id, access_token):
         'Content-Type': 'application/json'
     }
     
-    # Updated to point to a Personal Profile instead of an Organization
     author_urn = f"urn:li:person:{person_id}"
     file_size = os.path.getsize(video_path)
     
@@ -105,6 +104,10 @@ def post_to_linkedin(video_path, caption, person_id, access_token):
     reg_req = requests.post(register_url, headers=headers, json=register_payload)
     reg_data = reg_req.json()
     
+    if 'value' not in reg_data:
+        print(f"LinkedIn Register Upload Failed: {reg_data}")
+        return False
+
     upload_url = reg_data['value']['uploadMechanism']['com.linkedin.digitalmedia.uploading.MediaUploadHttpRequest']['uploadUrl']
     asset_urn = reg_data['value']['asset']
     
@@ -115,7 +118,7 @@ def post_to_linkedin(video_path, caption, person_id, access_token):
         upload_req = requests.put(upload_url, headers=upload_headers, data=video_file)
         
     if upload_req.status_code not in [200, 201]:
-        print("Failed to upload binary to LinkedIn.")
+        print(f"Failed to upload binary to LinkedIn. Status: {upload_req.status_code}")
         return False
         
     # Step 3: Create the UGC Post
@@ -139,7 +142,9 @@ def post_to_linkedin(video_path, caption, person_id, access_token):
     if post_req.status_code == 201:
         print("LinkedIn Upload Successful.")
         return True
-    return False
+    else:
+        print(f"LinkedIn Post Creation Failed: Status {post_req.status_code} - {post_req.text}")
+        return False
 
 
 from google.oauth2.credentials import Credentials
