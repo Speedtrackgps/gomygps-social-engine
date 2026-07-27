@@ -79,6 +79,8 @@ def process_pending_posts():
     YT_CLIENT_ID = os.environ.get("YT_CLIENT_ID")
     YT_CLIENT_SECRET = os.environ.get("YT_CLIENT_SECRET")
     YT_REFRESH_TOKEN = os.environ.get("YT_REFRESH_TOKEN")
+    PIN_TOKEN = os.environ.get("PIN_ACCESS_TOKEN")
+    PIN_BOARD = os.environ.get("PIN_BOARD_ID")
 
     client = authenticate_sheets()
     sheet = client.open_by_key(SHEET_ID).worksheet(TAB_NAME)
@@ -119,6 +121,9 @@ def process_pending_posts():
                 
             if "YT" in platforms or "GB" in platforms:
                 post_to_youtube(compressed_video_path, linkedin_title, caption, YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN)
+                
+            if "PIN" in platforms:
+                post_to_pinterest(compressed_video_path, caption, PIN_BOARD, PIN_TOKEN)
                 
             # 4. Update Sheet
             sheet.update_cell(row_num, 9, "Done")
