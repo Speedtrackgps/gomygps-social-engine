@@ -55,13 +55,13 @@ def compress_video(input_path, output_path):
     return output_path
 
 def get_public_url_for_instagram(filepath):
-    """Uploads to a temporary free server to give Instagram a direct download link."""
+    """Uploads to file.io to generate a clean, direct public link for Meta."""
     print("Generating public URL for Meta...")
     with open(filepath, 'rb') as f:
-        # Catbox.moe is a free, no-auth temporary file host
-        res = requests.post('https://catbox.moe/user/api.php', data={'reqtype': 'fileupload'}, files={'fileToUpload': f})
+        res = requests.post('https://file.io', files={'file': f})
     
-    public_url = res.text
+    data = res.json()
+    public_url = data.get('link')
     print(f"Public URL generated: {public_url}")
     return public_url
 
