@@ -12,7 +12,8 @@ from social_publishers import (
     post_to_facebook, 
     post_to_instagram, 
     post_to_linkedin, 
-    post_to_youtube
+    post_to_youtube,
+    post_to_pinterest
 )
 
 # Configuration using your specific Google Sheet ID
