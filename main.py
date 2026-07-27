@@ -56,7 +56,7 @@ def compress_video(input_path, output_path):
 
 def get_public_url_for_instagram(filepath):
     """Uploads to file.io to generate a clean, direct public link for Meta."""
-    print("Generating public URL for Meta...")
+    print("Generating public URL for Meta via file.io...")
     with open(filepath, 'rb') as f:
         res = requests.post('https://file.io', files={'file': f})
     
@@ -111,7 +111,8 @@ def process_pending_posts():
                 post_to_instagram(ig_public_url, caption, IG_USER_ID, FB_TOKEN)
                 
             if "LI" in platforms:
-                post_to_linkedin(compressed_video_path, caption, LI_PERSON_ID, LI_TOKEN)
+                # Removed LI_PERSON_ID - the script finds it automatically now!
+                post_to_linkedin(compressed_video_path, caption, LI_TOKEN)
                 
             if "YT" in platforms or "GB" in platforms:
                 post_to_youtube(compressed_video_path, linkedin_title, caption, YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN)
