@@ -36,6 +36,7 @@ def post_to_instagram(video_url, caption, ig_user_id, access_token):
         'media_type': 'REELS',
         'video_url': video_url,
         'caption': caption,
+        'thumb_offset': '2000',  # Sets the cover image to the 2-second mark
         'access_token': access_token
     }
     
