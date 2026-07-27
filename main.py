@@ -55,15 +55,22 @@ def compress_video(input_path, output_path):
     return output_path
 
 def get_public_url_for_instagram(filepath):
-    """Uploads to file.io to generate a clean, direct public link for Meta."""
-    print("Generating public URL for Meta via file.io...")
-    with open(filepath, 'rb') as f:
-        res = requests.post('https://file.io', files={'file': f})
+    """Uploads to tmpfiles.org to generate a clean, direct public link for Meta."""
+    print("Generating public URL for Meta via tmpfiles.org...")
     
-    data = res.json()
-    public_url = data.get('link')
-    print(f"Public URL generated: {public_url}")
-    return public_url
+    with open(filepath, 'rb') as f:
+        res = requests.post('https://tmpfiles.org/api/v1/upload', files={'file': f})
+    
+    try:
+        data = res.json()
+        # The API returns a viewer page URL, we need to inject '/dl/' to give Meta the direct .mp4 file
+        viewer_url = data['data']['url']
+        public_url = viewer_url.replace('tmpfiles.org/', 'tmpfiles.org/dl/')
+        print(f"Public URL generated: {public_url}")
+        return public_url
+    except Exception as e:
+        print(f"Upload failed. Host returned: {res.text}")
+        return None
 
 def process_pending_posts():
     """Reads the sheet, processes videos, and uploads them."""
