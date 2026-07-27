@@ -98,7 +98,7 @@ def post_to_linkedin(video_path, caption, access_token):
     if me_req.status_code == 200:
         data = me_req.json()
         person_id = data.get('sub') or data.get('id')
-        author_urn = f"urn:li:member:{person_id}"
+        author_urn = f"urn:li:person:{person_id}"
         print(f"Successfully linked to account: {author_urn}")
     else:
         print(f"Failed to fetch ID. Error: {me_req.text}")
