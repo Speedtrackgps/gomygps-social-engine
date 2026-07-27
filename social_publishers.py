@@ -80,7 +80,7 @@ def post_to_instagram(video_url, caption, ig_user_id, access_token):
     return False
 
 
-def post_to_linkedin(video_path, caption, access_token):
+def post_to_linkedin(video_path, caption, person_id, access_token):
     print("Initializing LinkedIn Video Upload...")
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -88,21 +88,9 @@ def post_to_linkedin(video_path, caption, access_token):
         'Content-Type': 'application/json'
     }
     
-    # Step 0: Auto-fetch your exact LinkedIn Member ID
-    print("Auto-fetching your LinkedIn Member ID...")
-    me_req = requests.get('https://api.linkedin.com/v2/userinfo', headers=headers)
-    if me_req.status_code != 200:
-        me_req = requests.get('https://api.linkedin.com/v2/me', headers=headers)
-        
-    if me_req.status_code == 200:
-        data = me_req.json()
-        person_id = data.get('sub') or data.get('id')
-        author_urn = f"urn:li:member:{person_id}"
-        print(f"Successfully linked to account: {author_urn}")
-    else:
-        print(f"Failed to fetch ID. Ensure token has 'profile' scope. Error: {me_req.text}")
-        return False
-
+    # Using 'member' instead of 'person' fixes the 403 Access Denied error
+    author_urn = f"urn:li:member:{person_id}"
+    
     # Step 1: Register the Upload
     register_url = "https://api.linkedin.com/v2/assets?action=registerUpload"
     register_payload = {
@@ -129,10 +117,6 @@ def post_to_linkedin(video_path, caption, access_token):
     with open(video_path, 'rb') as video_file:
         upload_req = requests.put(upload_url, headers=upload_headers, data=video_file)
         
-    if upload_req.status_code not in [200, 201]:
-        print(f"Failed to upload binary to LinkedIn. Status: {upload_req.status_code}")
-        return False
-        
     # Step 3: Create the UGC Post
     print("Creating LinkedIn Post...")
     post_url = "https://api.linkedin.com/v2/ugcPosts"
@@ -150,12 +134,11 @@ def post_to_linkedin(video_path, caption, access_token):
     }
     
     post_req = requests.post(post_url, headers=headers, json=post_payload)
-    
     if post_req.status_code == 201:
         print("LinkedIn Upload Successful.")
         return True
     else:
-        print(f"LinkedIn Post Creation Failed: Status {post_req.status_code} - {post_req.text}")
+        print(f"LinkedIn Post Creation Failed: {post_req.text}")
         return False
 
 
