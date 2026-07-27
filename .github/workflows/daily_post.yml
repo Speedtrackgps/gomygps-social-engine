@@ -1,13 +1,14 @@
 name: Daily Social Media Publisher
 
 on:
-  schedule:
-    - cron: '30 16 * * *'
-  workflow_dispatch:
+  repository_dispatch:
+    types: [run-daily-posts]
+  workflow_dispatch: # Keeps the manual run button just in case
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    # ... the rest of your steps remain exactly the same
 
     steps:
       - name: Checkout Repository
