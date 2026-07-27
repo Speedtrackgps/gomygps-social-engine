@@ -9,6 +9,7 @@ def post_to_facebook(video_path, caption, page_id, access_token):
     
     payload = {
         'description': caption,
+        'thumb_offset': '2000',
         'access_token': access_token
     }
     
