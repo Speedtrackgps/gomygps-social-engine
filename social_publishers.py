@@ -199,3 +199,67 @@ def post_to_youtube(video_path, title, caption, client_id, client_secret, refres
         print(f"YouTube Upload Successful. Video ID: {response['id']}")
         return True
     return False
+
+def post_to_pinterest(video_path, caption, board_id, access_token):
+    print("Initializing Pinterest Video Upload...")
+    headers = {
+        'Authorization': f'Bearer {access_token}',
+        'Content-Type': 'application/json'
+    }
+    
+    # Step 1: Register the Media Upload
+    print("Registering video with Pinterest...")
+    reg_payload = {"media_type": "video"}
+    reg_req = requests.post("https://api.pinterest.com/v5/media", headers=headers, json=reg_payload)
+    reg_data = reg_req.json()
+    
+    if 'media_id' not in reg_data:
+        print(f"Pinterest Registration Failed: {reg_data}")
+        return False
+        
+    media_id = reg_data['media_id']
+    upload_url = reg_data['upload_url']
+    upload_params = reg_data['upload_parameters']
+    
+    # Step 2: Upload Binary Data to Pinterest's AWS Server
+    print(f"Uploading video binary to Pinterest server (Media ID: {media_id})...")
+    with open(video_path, 'rb') as video_file:
+        files = {'file': video_file}
+        upload_req = requests.post(upload_url, data=upload_params, files=files)
+        
+    if upload_req.status_code not in [200, 204]:
+        print(f"Pinterest AWS Upload Failed: {upload_req.text}")
+        return False
+        
+    # Step 3: Poll for Processing Status
+    print("Waiting for Pinterest to process the video...")
+    while True:
+        status_req = requests.get(f"https://api.pinterest.com/v5/media/{media_id}", headers=headers)
+        status = status_req.json().get('status')
+        if status == 'succeeded':
+            print("Video processing complete!")
+            break
+        elif status == 'failed':
+            print("Pinterest failed to process the video.")
+            return False
+        time.sleep(5)
+        
+    # Step 4: Create the Video Pin
+    print("Creating the Pin on your board...")
+    pin_payload = {
+        "board_id": board_id,
+        "title": caption[:100],  # Pinterest titles max out at 100 characters
+        "description": caption[:800], # Descriptions max out at 800 characters
+        "media_source": {
+            "source_type": "video_id",
+            "media_id": media_id
+        }
+    }
+    pin_req = requests.post("https://api.pinterest.com/v5/pins", headers=headers, json=pin_payload)
+    
+    if pin_req.status_code == 201:
+        print("Pinterest Upload Successful.")
+        return True
+    else:
+        print(f"Pinterest Pin Creation Failed: {pin_req.text}")
+        return False
