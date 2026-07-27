@@ -81,7 +81,7 @@ def post_to_instagram(video_url, caption, ig_user_id, access_token):
     return False
 
 
-def post_to_linkedin(video_path, caption, person_id, access_token):
+def post_to_linkedin(video_path, caption, access_token):
     print("Initializing LinkedIn Video Upload...")
     headers = {
         'Authorization': f'Bearer {access_token}',
@@ -89,9 +89,21 @@ def post_to_linkedin(video_path, caption, person_id, access_token):
         'Content-Type': 'application/json'
     }
     
-    # Using 'member' instead of 'person' fixes the 403 Access Denied error
-    author_urn = f"urn:li:member:{person_id}"
-    
+    # Auto-fetch your exact LinkedIn Member ID using the new token
+    print("Auto-fetching your LinkedIn Member ID...")
+    me_req = requests.get('https://api.linkedin.com/v2/userinfo', headers=headers)
+    if me_req.status_code != 200:
+        me_req = requests.get('https://api.linkedin.com/v2/me', headers=headers)
+        
+    if me_req.status_code == 200:
+        data = me_req.json()
+        person_id = data.get('sub') or data.get('id')
+        author_urn = f"urn:li:member:{person_id}"
+        print(f"Successfully linked to account: {author_urn}")
+    else:
+        print(f"Failed to fetch ID. Error: {me_req.text}")
+        return False
+
     # Step 1: Register the Upload
     register_url = "https://api.linkedin.com/v2/assets?action=registerUpload"
     register_payload = {
@@ -141,7 +153,6 @@ def post_to_linkedin(video_path, caption, person_id, access_token):
     else:
         print(f"LinkedIn Post Creation Failed: {post_req.text}")
         return False
-
 
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
