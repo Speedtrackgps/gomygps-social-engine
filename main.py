@@ -55,21 +55,18 @@ def compress_video(input_path, output_path):
     return output_path
 
 def get_public_url_for_instagram(filepath):
-    """Uploads to tmpfiles.org to generate a clean, direct public link for Meta."""
-    print("Generating public URL for Meta via tmpfiles.org...")
-    
+    """Uploads to Uguu for a direct, raw .mp4 link that Meta can easily read."""
+    print("Uploading to direct file host (Uguu)...")
     with open(filepath, 'rb') as f:
-        res = requests.post('https://tmpfiles.org/api/v1/upload', files={'file': f})
+        res = requests.post('https://uguu.se/upload', files={'files[]': f})
     
     try:
         data = res.json()
-        # The API returns a viewer page URL, we need to inject '/dl/' to give Meta the direct .mp4 file
-        viewer_url = data['data']['url']
-        public_url = viewer_url.replace('tmpfiles.org/', 'tmpfiles.org/dl/')
+        public_url = data['files'][0]['url']
         print(f"Public URL generated: {public_url}")
         return public_url
     except Exception as e:
-        print(f"Upload failed. Host returned: {res.text}")
+        print(f"Upload failed: {res.text}")
         return None
 
 def process_pending_posts():
@@ -118,8 +115,7 @@ def process_pending_posts():
                 post_to_instagram(ig_public_url, caption, IG_USER_ID, FB_TOKEN)
                 
             if "LI" in platforms:
-                # Removed LI_PERSON_ID - the script finds it automatically now!
-                post_to_linkedin(compressed_video_path, caption, LI_TOKEN)
+                post_to_linkedin(compressed_video_path, caption, LI_PERSON_ID, LI_TOKEN)
                 
             if "YT" in platforms or "GB" in platforms:
                 post_to_youtube(compressed_video_path, linkedin_title, caption, YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN)
