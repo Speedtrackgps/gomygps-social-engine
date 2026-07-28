@@ -4,10 +4,11 @@ import requests
 import gspread
 import gdown
 import subprocess
+import mimetypes
 from datetime import datetime
 from google.oauth2.service_account import Credentials
 
-# Import your publisher functions from the separate file
+# Import your publisher functions
 from social_publishers import (
     post_to_facebook, 
     post_to_instagram, 
@@ -16,39 +17,48 @@ from social_publishers import (
     post_to_pinterest
 )
 
-# Configuration using your specific Google Sheet ID
 SHEET_ID = "1lSBKYJ2mmzF7fkGHQ3NggaFmoJ4cBym4OjfRfAWh6xs" 
 TAB_NAME = "Sheet1"
 
 def authenticate_sheets():
-    """Authenticates the Google Sheets Service Account."""
     creds_json = json.loads(os.environ["GOOGLE_CREDENTIALS_JSON"])
     scopes = ["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"]
     creds = Credentials.from_service_account_info(creds_json, scopes=scopes)
     return gspread.authorize(creds)
 
-def download_large_video(drive_url, task_id):
-    """Safely downloads large files from Drive bypassing the virus scan."""
+def download_file_and_detect_type(drive_url, task_id):
+    """Downloads from Drive using the original file extension and detects media type."""
     file_id = drive_url.split('/d/')[1].split('/')[0]
-    direct_url = f"https://drive.google.com/uc?id={file_id}"
     
-    filename = f"raw_task_{task_id}.mp4"
-    print(f"Downloading massive video for Task ID: {task_id}...")
+    print(f"Downloading file for Task ID: {task_id}...")
+    # Passing output=None forces gdown to use the original filename (e.g., image.png or video.mp4)
+    original_filename = gdown.download(id=file_id, output=None, quiet=False)
     
-    # gdown automatically handles the large file warning
-    gdown.download(direct_url, filename, quiet=False)
-    return filename
+    if not original_filename:
+        print("Failed to download file from Google Drive.")
+        return None, None
+        
+    # Detect type based on the extracted extension
+    mime_type, _ = mimetypes.guess_type(original_filename)
+    media_type = 'image' if mime_type and mime_type.startswith('image') else 'video'
+    
+    # Rename to standard task format to avoid spaces/weird characters
+    ext = os.path.splitext(original_filename)[1]
+    safe_filename = f"raw_task_{task_id}{ext}"
+    os.rename(original_filename, safe_filename)
+    
+    print(f"Detected media type: {media_type.upper()} ({ext})")
+    return safe_filename, media_type
 
 def compress_video(input_path, output_path):
-    """Compresses and formats video specifically for Instagram Reels compliance."""
-    print(f"Optimizing and compressing video for Instagram Reels...")
+    print(f"Optimizing and compressing video for Meta compliance...")
     command = [
         'ffmpeg', '-i', input_path,
         '-vcodec', 'libx264', '-crf', '28',
         '-preset', 'fast',
-        '-acodec', 'aac',          # Instagram strictly requires AAC audio
-        '-pix_fmt', 'yuv420p',     # Standard pixel format for mobile/web players
-        '-movflags', '+faststart', # Puts video metadata at the start so Meta can read it instantly
+        '-acodec', 'aac', 
+        '-pix_fmt', 'yuv420p',
+        '-movflags', '+faststart',
         output_path
     ]
     subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -56,11 +66,9 @@ def compress_video(input_path, output_path):
     return output_path
 
 def get_public_url_for_instagram(filepath):
-    """Uploads to Uguu for a direct, raw .mp4 link that Meta can easily read."""
-    print("Uploading to direct file host (Uguu)...")
+    print("Uploading to direct file host (Uguu) for Meta consumption...")
     with open(filepath, 'rb') as f:
         res = requests.post('https://uguu.se/upload', files={'files[]': f})
-    
     try:
         data = res.json()
         public_url = data['files'][0]['url']
@@ -71,12 +79,10 @@ def get_public_url_for_instagram(filepath):
         return None
 
 def process_pending_posts():
-    """Reads the sheet, processes videos, and uploads them."""
     FB_TOKEN = os.environ.get("FB_ACCESS_TOKEN")
     FB_PAGE_ID = os.environ.get("FB_PAGE_ID")
     IG_USER_ID = os.environ.get("IG_USER_ID")
     LI_TOKEN = os.environ.get("LI_ACCESS_TOKEN")
-    LI_PERSON_ID = os.environ.get("LI_PERSON_ID")
     YT_CLIENT_ID = os.environ.get("YT_CLIENT_ID")
     YT_CLIENT_SECRET = os.environ.get("YT_CLIENT_SECRET")
     YT_REFRESH_TOKEN = os.environ.get("YT_REFRESH_TOKEN")
@@ -101,38 +107,48 @@ def process_pending_posts():
             
             print(f"\n--- Executing Task {task_id} ---")
             
-            # 1. Download safely
-            raw_video_path = download_large_video(row["drive_file_url"], task_id)
+            # 1. Download safely and detect format
+            raw_file_path, media_type = download_file_and_detect_type(row["drive_file_url"], task_id)
+            if not raw_file_path:
+                continue
             
-            # 2. Compress automatically
-            compressed_video_path = f"compressed_task_{task_id}.mp4"
-            compress_video(raw_video_path, compressed_video_path)
+            # 2. Compress ONLY if it is a video
+            if media_type == 'video':
+                final_media_path = f"compressed_task_{task_id}.mp4"
+                compress_video(raw_file_path, final_media_path)
+            else:
+                final_media_path = raw_file_path # Skip compression for images
             
-            # 3. Upload to platforms using the COMPRESSED video
+            # 3. Upload to platforms
             if "FB" in platforms:
-                post_to_facebook(compressed_video_path, caption, FB_PAGE_ID, FB_TOKEN)
+                post_to_facebook(final_media_path, caption, FB_PAGE_ID, FB_TOKEN, media_type)
                 
             if "IG" in platforms:
-                # Meta needs a public URL, not a local file. Generate one from the compressed file!
-                ig_public_url = get_public_url_for_instagram(compressed_video_path)
-                post_to_instagram(ig_public_url, caption, IG_USER_ID, FB_TOKEN)
+                ig_public_url = get_public_url_for_instagram(final_media_path)
+                if ig_public_url:
+                    post_to_instagram(ig_public_url, caption, IG_USER_ID, FB_TOKEN, media_type)
                 
             if "LI" in platforms:
-                post_to_linkedin(compressed_video_path, caption, LI_TOKEN)
+                post_to_linkedin(final_media_path, caption, LI_TOKEN, media_type)
                 
-            if "YT" in platforms or "GB" in platforms:
-                post_to_youtube(compressed_video_path, linkedin_title, caption, YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN)
+            if "YT" in platforms:
+                post_to_youtube(final_media_path, linkedin_title, caption, YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN, media_type)
                 
             if "PIN" in platforms:
-                post_to_pinterest(compressed_video_path, caption, PIN_BOARD, PIN_TOKEN)
+                try:
+                    # Wrapped in try-except so pending app issues don't crash the script
+                    post_to_pinterest(final_media_path, caption, PIN_BOARD, PIN_TOKEN, media_type)
+                except Exception as e:
+                    print(f"Pinterest execution generated an error: {e}")
+                    print("Continuing script execution...")
                 
             # 4. Update Sheet
             sheet.update_cell(row_num, 9, "Done")
             print(f"Task {task_id} successfully marked as Done.")
             
             # 5. Clean up temporary files
-            if os.path.exists(raw_video_path): os.remove(raw_video_path)
-            if os.path.exists(compressed_video_path): os.remove(compressed_video_path)
+            if os.path.exists(raw_file_path): os.remove(raw_file_path)
+            if media_type == 'video' and os.path.exists(final_media_path): os.remove(final_media_path)
 
 if __name__ == "__main__":
     process_pending_posts()
