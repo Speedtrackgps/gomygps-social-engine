@@ -5,6 +5,7 @@ import gspread
 import gdown
 import subprocess
 import mimetypes
+import time
 from datetime import datetime
 from google.oauth2.service_account import Credentials
 
@@ -90,7 +91,25 @@ def process_pending_posts():
     PIN_BOARD = os.environ.get("PIN_BOARD_ID")
 
     client = authenticate_sheets()
-    sheet = client.open_by_key(SHEET_ID).worksheet(TAB_NAME)
+    
+    # --- RETRY LOGIC FOR GOOGLE SHEETS API ---
+    max_retries = 5
+    sheet = None
+    for attempt in range(max_retries):
+        try:
+            sheet = client.open_by_key(SHEET_ID).worksheet(TAB_NAME)
+            break  # Success! Exit the loop.
+        except Exception as e:
+            if "503" in str(e):
+                if attempt < max_retries - 1:
+                    print(f"Google API 503 Error. Retrying in 5 seconds... (Attempt {attempt + 1}/{max_retries})")
+                    time.sleep(5)  # Wait 5 seconds before trying again
+                else:
+                    raise e  # Out of retries, crash the script
+            else:
+                raise e  # If it's a different error (like 403 Forbidden), crash immediately
+    # -----------------------------------------
+
     records = sheet.get_all_records()
     today = datetime.now().strftime("%Y-%m-%d")
     
