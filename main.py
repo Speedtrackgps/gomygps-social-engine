@@ -15,7 +15,8 @@ from social_publishers import (
     post_to_instagram, 
     post_to_linkedin, 
     post_to_youtube,
-    post_to_pinterest
+    post_to_pinterest,
+    post_to_google_business # <-- NEW
 )
 
 SHEET_ID = "1lSBKYJ2mmzF7fkGHQ3NggaFmoJ4cBym4OjfRfAWh6xs" 
@@ -28,22 +29,17 @@ def authenticate_sheets():
     return gspread.authorize(creds)
 
 def download_file_and_detect_type(drive_url, task_id):
-    """Downloads from Drive using the original file extension and detects media type."""
     file_id = drive_url.split('/d/')[1].split('/')[0]
-    
     print(f"Downloading file for Task ID: {task_id}...")
-    # Passing output=None forces gdown to use the original filename (e.g., image.png or video.mp4)
     original_filename = gdown.download(id=file_id, output=None, quiet=False)
     
     if not original_filename:
         print("Failed to download file from Google Drive.")
         return None, None
         
-    # Detect type based on the extracted extension
     mime_type, _ = mimetypes.guess_type(original_filename)
     media_type = 'image' if mime_type and mime_type.startswith('image') else 'video'
     
-    # Rename to standard task format to avoid spaces/weird characters
     ext = os.path.splitext(original_filename)[1]
     safe_filename = f"raw_task_{task_id}{ext}"
     os.rename(original_filename, safe_filename)
@@ -67,7 +63,7 @@ def compress_video(input_path, output_path):
     return output_path
 
 def get_public_url_for_instagram(filepath):
-    print("Uploading to direct file host (Uguu) for Meta consumption...")
+    print("Uploading to direct file host (Uguu) for Meta/GBP consumption...")
     with open(filepath, 'rb') as f:
         res = requests.post('https://uguu.se/upload', files={'files[]': f})
     try:
@@ -89,26 +85,28 @@ def process_pending_posts():
     YT_REFRESH_TOKEN = os.environ.get("YT_REFRESH_TOKEN")
     PIN_TOKEN = os.environ.get("PIN_ACCESS_TOKEN")
     PIN_BOARD = os.environ.get("PIN_BOARD_ID")
+    
+    # GBP VARIABLES
+    GBP_TOKEN = os.environ.get("GBP_ACCESS_TOKEN")
+    GBP_LOCATIONS = os.environ.get("GBP_LOCATION_IDS")
 
     client = authenticate_sheets()
     
-    # --- RETRY LOGIC FOR GOOGLE SHEETS API ---
     max_retries = 5
     sheet = None
     for attempt in range(max_retries):
         try:
             sheet = client.open_by_key(SHEET_ID).worksheet(TAB_NAME)
-            break  # Success! Exit the loop.
+            break
         except Exception as e:
             if "503" in str(e):
                 if attempt < max_retries - 1:
                     print(f"Google API 503 Error. Retrying in 5 seconds... (Attempt {attempt + 1}/{max_retries})")
-                    time.sleep(5)  # Wait 5 seconds before trying again
+                    time.sleep(5) 
                 else:
-                    raise e  # Out of retries, crash the script
+                    raise e 
             else:
-                raise e  # If it's a different error (like 403 Forbidden), crash immediately
-    # -----------------------------------------
+                raise e 
 
     records = sheet.get_all_records()
     today = datetime.now().strftime("%Y-%m-%d")
@@ -126,26 +124,27 @@ def process_pending_posts():
             
             print(f"\n--- Executing Task {task_id} ---")
             
-            # 1. Download safely and detect format
             raw_file_path, media_type = download_file_and_detect_type(row["drive_file_url"], task_id)
             if not raw_file_path:
                 continue
             
-            # 2. Compress ONLY if it is a video
             if media_type == 'video':
                 final_media_path = f"compressed_task_{task_id}.mp4"
                 compress_video(raw_file_path, final_media_path)
             else:
-                final_media_path = raw_file_path # Skip compression for images
+                final_media_path = raw_file_path 
             
-            # 3. Upload to platforms
+            # Generate public URL if needed by IG or GBP
+            public_url = None
+            if "IG" in platforms or ("GBP" in platforms and media_type == 'image'):
+                public_url = get_public_url_for_instagram(final_media_path)
+
             if "FB" in platforms:
                 post_to_facebook(final_media_path, caption, FB_PAGE_ID, FB_TOKEN, media_type)
                 
             if "IG" in platforms:
-                ig_public_url = get_public_url_for_instagram(final_media_path)
-                if ig_public_url:
-                    post_to_instagram(ig_public_url, caption, IG_USER_ID, FB_TOKEN, media_type)
+                if public_url:
+                    post_to_instagram(public_url, caption, IG_USER_ID, FB_TOKEN, media_type)
                 
             if "LI" in platforms:
                 post_to_linkedin(final_media_path, caption, LI_TOKEN, media_type)
@@ -155,17 +154,21 @@ def process_pending_posts():
                 
             if "PIN" in platforms:
                 try:
-                    # Wrapped in try-except so pending app issues don't crash the script
                     post_to_pinterest(final_media_path, caption, PIN_BOARD, PIN_TOKEN, media_type)
                 except Exception as e:
                     print(f"Pinterest execution generated an error: {e}")
-                    print("Continuing script execution...")
+                    
+            if "GBP" in platforms:
+                if media_type == 'image' and public_url:
+                    post_to_google_business(public_url, GBP_TOKEN, GBP_LOCATIONS)
+                elif media_type == 'video':
+                    print("Skipping GBP: Video uploads are not supported for GBP in this script.")
+                else:
+                    print("GBP Upload Failed: Could not generate public URL.")
                 
-            # 4. Update Sheet
             sheet.update_cell(row_num, 9, "Done")
             print(f"Task {task_id} successfully marked as Done.")
             
-            # 5. Clean up temporary files
             if os.path.exists(raw_file_path): os.remove(raw_file_path)
             if media_type == 'video' and os.path.exists(final_media_path): os.remove(final_media_path)
 
