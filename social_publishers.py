@@ -263,3 +263,37 @@ def post_to_pinterest(file_path, caption, board_id, access_token, media_type):
             print("Pinterest Video Upload Successful.")
             return True
         return False
+def post_to_google_business(file_url, access_token, location_ids):
+    print("Initializing Google Business Profile Photo Upload...")
+    
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+
+    # Split the comma-separated string of location IDs (e.g. "accounts/123/locations/456,accounts/123/locations/789")
+    locations = [loc.strip() for loc in location_ids.split(',')]
+    success_count = 0
+
+    for location in locations:
+        url = f"https://mybusiness.googleapis.com/v4/{location}/media"
+        
+        media_payload = {
+            "mediaFormat": "PHOTO",
+            "locationAssociation": {
+                "category": "ADDITIONAL"
+            },
+            "sourceUrl": file_url
+        }
+
+        try:
+            response = requests.post(url, headers=headers, json=media_payload)
+            if response.status_code == 200:
+                print(f"✅ GBP Upload Successful for location: {location}")
+                success_count += 1
+            else:
+                print(f"❌ GBP Upload Failed for location {location}: {response.text}")
+        except Exception as e:
+            print(f"❌ GBP API Exception for location {location}: {e}")
+
+    return success_count > 0
