@@ -263,15 +263,34 @@ def post_to_pinterest(file_path, caption, board_id, access_token, media_type):
             print("Pinterest Video Upload Successful.")
             return True
         return False
-def post_to_google_business(file_url, access_token, location_ids):
+import json
+from google.oauth2.credentials import Credentials
+import google.auth.transport.requests
+
+def post_to_google_business(file_url, gbp_token_json_str, location_ids):
     print("Initializing Google Business Profile Photo Upload...")
     
+    # 1. Load the full JSON block from the GitHub Secret
+    try:
+        creds_data = json.loads(gbp_token_json_str)
+        creds = Credentials.from_authorized_user_info(creds_data)
+        
+        # 2. Automatically refresh the token if it has expired!
+        if creds.expired and creds.refresh_token:
+            print("GBP token expired. Generating a fresh token via refresh_token...")
+            creds.refresh(google.auth.transport.requests.Request())
+            
+    except Exception as e:
+        print(f"❌ Failed to parse or refresh GBP credentials: {e}")
+        return False
+
+    # 3. Use the fresh token for the API calls
     headers = {
-        "Authorization": f"Bearer {access_token}",
+        "Authorization": f"Bearer {creds.token}",
         "Content-Type": "application/json"
     }
 
-    # Split the comma-separated string of location IDs (e.g. "accounts/123/locations/456,accounts/123/locations/789")
+    # Split the comma-separated string of location IDs
     locations = [loc.strip() for loc in location_ids.split(',')]
     success_count = 0
 
