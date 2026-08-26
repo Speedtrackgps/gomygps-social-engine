@@ -38,4 +38,6 @@ jobs:
           PIN_BOARD_ID: ${{ secrets.PIN_BOARD_ID }}
           YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
           YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
+          GBP_ACCESS_TOKEN: ${{ secrets.GBP_ACCESS_TOKEN }}
+          GBP_LOCATION_IDS: ${{ secrets.GBP_LOCATION_IDS }}
         run: python main.py
