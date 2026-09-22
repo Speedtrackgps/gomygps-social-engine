@@ -4,6 +4,8 @@ import time
 import os
 import base64
 
+from requests_toolbelt.multipart.encoder import MultipartEncoder # <-- NEW IMPORT
+
 def post_to_facebook(file_path, caption, page_id, access_token, media_type):
     print(f"Initializing Facebook {media_type.capitalize()} Upload...")
     
@@ -13,17 +15,22 @@ def post_to_facebook(file_path, caption, page_id, access_token, media_type):
         with open(file_path, 'rb') as f:
             response = requests.post(url, data=payload, files={'source': f})
     else:
+        # Stream the massive video file using MultipartEncoder
         url = f"https://graph.facebook.com/v19.0/{page_id}/videos"
-        payload = {'description': caption, 'thumb_offset': '2000', 'access_token': access_token}
-        with open(file_path, 'rb') as f:
-            response = requests.post(url, data=payload, files={'source': f})
+        m = MultipartEncoder(
+            fields={
+                'description': caption,
+                'thumb_offset': '2000',
+                'access_token': access_token,
+                'source': (os.path.basename(file_path), open(file_path, 'rb'), 'video/mp4')
+            }
+        )
+        response = requests.post(url, headers={'Content-Type': m.content_type}, data=m)
     
-    # Check if Facebook returned an error BEFORE parsing JSON
     if not response.ok:
         print(f"Facebook API Error (Status {response.status_code}): {response.text}")
         return False
 
-    # Prevent script crash if Facebook returns non-JSON text
     try:
         result = response.json()
     except requests.exceptions.JSONDecodeError:
