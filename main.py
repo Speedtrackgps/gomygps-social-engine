@@ -52,11 +52,13 @@ def compress_video(input_path, output_path):
     command = [
         'ffmpeg', '-i', input_path,
         '-vcodec', 'libx264', 
-        '-crf', '32',           # <-- INCREASED from 28 to shrink file size further
-        '-maxrate', '1.5M',     # <-- NEW: Caps the bitrate to prevent massive files
-        '-bufsize', '3M',       # <-- NEW: Required when using maxrate
+        '-crf', '35',               # Higher CRF = much smaller file size
+        '-vf', 'scale=-2:720',      # Downscale long videos to 720p to drastically reduce size
+        '-maxrate', '800k',         # Restrict maximum bitrate
+        '-bufsize', '1600k',        # Buffer size for bitrate control
         '-preset', 'fast',
         '-acodec', 'aac', 
+        '-b:a', '128k',             # Lower audio bitrate to save space
         '-pix_fmt', 'yuv420p',
         '-movflags', '+faststart',
         output_path
@@ -64,7 +66,7 @@ def compress_video(input_path, output_path):
     subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     print("Optimization complete!")
     return output_path
-
+    
 def get_public_url_for_instagram(filepath):
     print("Uploading to direct file host (Uguu) for Meta/GBP consumption...")
     with open(filepath, 'rb') as f:
