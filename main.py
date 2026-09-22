@@ -48,19 +48,16 @@ def download_file_and_detect_type(drive_url, task_id):
     return safe_filename, media_type
 
 def compress_video(input_path, output_path):
-    print(f"Optimizing and compressing video for Meta compliance...")
+    print(f"Optimizing video for Meta compliance (High Quality)...")
     command = [
         'ffmpeg', '-i', input_path,
         '-vcodec', 'libx264', 
-        '-crf', '35',               # Higher CRF = smaller file size
-        '-vf', 'scale=-2:720',      # Downscale to 720p to drastically reduce size
-        '-maxrate', '800k',         # Cap maximum bitrate
-        '-bufsize', '1600k',        # Buffer size for bitrate control
+        '-crf', '24',               # High quality (lower number = better quality. 23-28 is standard)
         '-preset', 'fast',
         '-acodec', 'aac', 
-        '-b:a', '128k',             # Lower audio bitrate to save space
-        '-pix_fmt', 'yuv420p',
-        '-movflags', '+faststart',
+        '-b:a', '192k',             # Restored high-quality audio
+        '-pix_fmt', 'yuv420p',      # Strict color format required by Instagram/Facebook
+        '-movflags', '+faststart',  # Crucial for smooth API uploads
         output_path
     ]
     subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
