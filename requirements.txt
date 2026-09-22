@@ -6,3 +6,4 @@ google-auth-oauthlib
 google-auth-httplib2
 requests-toolbelt
 gdown
+requests-toolbelt==1.0.0
