@@ -8,6 +8,7 @@ import mimetypes
 import time
 from datetime import datetime
 from google.oauth2.service_account import Credentials
+from requests_toolbelt.multipart.encoder import MultipartEncoder
 
 # Import your publisher functions
 from social_publishers import (
@@ -68,27 +69,29 @@ def get_public_url_for_instagram(filepath):
     print("Uploading to Litterbox (Free host for files up to 1GB)...")
     url = "https://litterbox.catbox.moe/resources/internals/api.php"
     
-    # ADD THIS HEADER so Litterbox doesn't block the Python script
-    headers = {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-    }
-    
     try:
-        with open(filepath, 'rb') as f:
-            files = {'fileToUpload': f}
-            data = {
+        # Use MultipartEncoder to perfectly mimic a real browser form submission
+        m = MultipartEncoder(
+            fields={
                 'reqtype': 'fileupload',
-                'time': '24h'
+                'time': '24h',
+                'fileToUpload': (os.path.basename(filepath), open(filepath, 'rb'), 'video/mp4')
             }
-            # PASS THE HEADERS HERE
-            response = requests.post(url, headers=headers, data=data, files=files, timeout=300)
+        )
+        
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Content-Type': m.content_type
+        }
+        
+        response = requests.post(url, headers=headers, data=m, timeout=300)
             
         if response.status_code == 200 and response.text.startswith('http'):
             public_url = response.text.strip()
             print(f"Public URL generated: {public_url}")
             return public_url
         else:
-            print(f"Upload failed: {response.text}")
+            print(f"Upload failed: {response.status_code} - {response.text[:100]}")
             return None
             
     except Exception as e:
