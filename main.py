@@ -68,16 +68,29 @@ def compress_video(input_path, output_path):
     return output_path
     
 def get_public_url_for_instagram(filepath):
-    print("Uploading to direct file host (Uguu) for Meta/GBP consumption...")
-    with open(filepath, 'rb') as f:
-        res = requests.post('https://uguu.se/upload', files={'files[]': f})
+    print("Uploading to Litterbox (Free host for files up to 1GB)...")
+    url = "https://litterbox.catbox.moe/resources/internals/api.php"
+    
     try:
-        data = res.json()
-        public_url = data['files'][0]['url']
-        print(f"Public URL generated: {public_url}")
-        return public_url
+        with open(filepath, 'rb') as f:
+            files = {'fileToUpload': f}
+            data = {
+                'reqtype': 'fileupload',
+                'time': '24h'  # Keeps the file active for 24 hours
+            }
+            response = requests.post(url, data=data, files=files, timeout=300)
+            
+        # Litterbox returns a plain text URL on success instead of JSON
+        if response.status_code == 200 and response.text.startswith('http'):
+            public_url = response.text.strip()
+            print(f"Public URL generated: {public_url}")
+            return public_url
+        else:
+            print(f"Upload failed: {response.text}")
+            return None
+            
     except Exception as e:
-        print(f"Upload failed: {res.text}")
+        print(f"Upload exception: {e}")
         return None
 
 def process_pending_posts():
