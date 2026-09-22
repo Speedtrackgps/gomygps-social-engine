@@ -71,16 +71,21 @@ def get_public_url_for_instagram(filepath):
     print("Uploading to Litterbox (Free host for files up to 1GB)...")
     url = "https://litterbox.catbox.moe/resources/internals/api.php"
     
+    # ADD THIS HEADER so Litterbox doesn't block the Python script
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    }
+    
     try:
         with open(filepath, 'rb') as f:
             files = {'fileToUpload': f}
             data = {
                 'reqtype': 'fileupload',
-                'time': '24h'  # Keeps the file active for 24 hours
+                'time': '24h'
             }
-            response = requests.post(url, data=data, files=files, timeout=300)
+            # PASS THE HEADERS HERE
+            response = requests.post(url, headers=headers, data=data, files=files, timeout=300)
             
-        # Litterbox returns a plain text URL on success instead of JSON
         if response.status_code == 200 and response.text.startswith('http'):
             public_url = response.text.strip()
             print(f"Public URL generated: {public_url}")
