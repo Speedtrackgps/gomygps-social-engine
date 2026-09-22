@@ -52,9 +52,9 @@ def compress_video(input_path, output_path):
     command = [
         'ffmpeg', '-i', input_path,
         '-vcodec', 'libx264', 
-        '-crf', '35',               # Higher CRF = much smaller file size
-        '-vf', 'scale=-2:720',      # Downscale long videos to 720p to drastically reduce size
-        '-maxrate', '800k',         # Restrict maximum bitrate
+        '-crf', '35',               # Higher CRF = smaller file size
+        '-vf', 'scale=-2:720',      # Downscale to 720p to drastically reduce size
+        '-maxrate', '800k',         # Cap maximum bitrate
         '-bufsize', '1600k',        # Buffer size for bitrate control
         '-preset', 'fast',
         '-acodec', 'aac', 
