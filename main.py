@@ -51,7 +51,10 @@ def compress_video(input_path, output_path):
     print(f"Optimizing and compressing video for Meta compliance...")
     command = [
         'ffmpeg', '-i', input_path,
-        '-vcodec', 'libx264', '-crf', '28',
+        '-vcodec', 'libx264', 
+        '-crf', '32',           # <-- INCREASED from 28 to shrink file size further
+        '-maxrate', '1.5M',     # <-- NEW: Caps the bitrate to prevent massive files
+        '-bufsize', '3M',       # <-- NEW: Required when using maxrate
         '-preset', 'fast',
         '-acodec', 'aac', 
         '-pix_fmt', 'yuv420p',
@@ -145,6 +148,8 @@ def process_pending_posts():
             if "IG" in platforms:
                 if public_url:
                     post_to_instagram(public_url, caption, IG_USER_ID, FB_TOKEN, media_type)
+                else:
+                    print("Skipping Instagram: Failed to generate public URL (file likely too large).")
                 
             if "LI" in platforms:
                 post_to_linkedin(final_media_path, caption, LI_TOKEN, media_type)
