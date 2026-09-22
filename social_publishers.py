@@ -17,8 +17,19 @@ def post_to_facebook(file_path, caption, page_id, access_token, media_type):
         payload = {'description': caption, 'thumb_offset': '2000', 'access_token': access_token}
         with open(file_path, 'rb') as f:
             response = requests.post(url, data=payload, files={'source': f})
-        
-    result = response.json()
+    
+    # --- NEW: Check if Facebook returned an error BEFORE parsing JSON ---
+    if not response.ok:
+        print(f"Facebook API Error (Status {response.status_code}): {response.text}")
+        return False
+
+    # --- NEW: Try/Except to prevent script crash if Facebook returns HTML ---
+    try:
+        result = response.json()
+    except requests.exceptions.JSONDecodeError:
+        print(f"Failed to parse Facebook response. Raw response: {response.text}")
+        return False
+
     if 'id' in result:
         print(f"Facebook Upload Successful. ID: {result['id']}")
         return True
